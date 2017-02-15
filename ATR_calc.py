@@ -21,10 +21,13 @@ def r2(y,yhat):
     rsq = ssr/sst
     return rsq
 
-timDec = []
-Traw =[]
+
 
 for file in glob.glob("*.csv"):
+    
+    timDec = []
+    Traw =[]
+    
     with open(file,'rt') as csvfile:
         csvRead = csv.reader(csvfile,delimiter=',')
         csvfile.readline()
@@ -32,12 +35,11 @@ for file in glob.glob("*.csv"):
             tD = timeConv(row[0])
             Traw.append(float(row[1]))
             timDec.append(tD)
-    
+            
     Tmax = max(Traw)
     print (Tmax)
     posTmax = [i for i,x in enumerate(Traw) if x == Tmax]
     posTmax = posTmax[0]
-    
     
     Tamb = numpy.mean(Traw[0:20])
     Twork = 0
@@ -68,6 +70,13 @@ for file in glob.glob("*.csv"):
         Tcorr.append(Traw[k] - eq[0]*(Traw[k]-Tamb)*timDec[k]- Twork)
         pNCO.append(100*r*(Tcorr[k]-Tamb)/(TadCalc-Tamb))
     
+    CSVout = file.split('.')[0] + "_Corrected.csv"    
+    with open(CSVout,'w', newline='') as f: 
+        head = ['t','Traw' ,'Tcorr' ,'P']
+        csvwrite = csv.DictWriter(f,fieldnames = head)
+        csvwrite.writeheader()
+        for j in range(len(Traw)):
+            csvwrite.writerow({'t': timDec[j], 'Traw': Traw[j],'Tcorr': Tcorr[j],'P': pNCO[j]})
     
     pltT = 'N'
     if pltT == 'Y' :
@@ -98,7 +107,7 @@ for file in glob.glob("*.csv"):
         ax3.set_ylim(0,100)
         
         plt.show()
-
+        plt.clf()
 
 
 
