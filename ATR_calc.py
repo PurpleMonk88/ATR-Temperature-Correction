@@ -1,15 +1,22 @@
+from __future__ import division
 import csv, numpy, glob
 import matplotlib.pyplot as plt
 
+
+# This Funcion takes in the time from the CSV which is in the format
+# HH:mm:ss and coverts it to seconds
 def timeConv(tCSV):
     (h,m,s)     = tCSV.split(':')
     timD = float(h)*3600+float(m)*60+float(s)
     return timD
 
+
+# function to find the slope of a data
 def findslope(t,T):
     mc,res,_,_,_ = numpy.polyfit(t,T,1,full = True)
     return mc, res
 
+# calculates the rsquared of a set of values given y and mean
 def r2(y,yhat):
     y2 = []
     yhat2 = []
@@ -21,13 +28,14 @@ def r2(y,yhat):
     rsq = ssr/sst
     return rsq
 
-
-
+#Glob finds all csvs and opens them
 for file in glob.glob("*.csv"):
-    
+
+#set these to zero as they will be appended later    
     timDec = []
     Traw =[]
-    
+
+#grabs data from the current csv, time converted to sec    
     with open(file,'rt') as csvfile:
         csvRead = csv.reader(csvfile,delimiter=',')
         csvfile.readline()
@@ -36,40 +44,45 @@ for file in glob.glob("*.csv"):
             Traw.append(float(row[1]))
             timDec.append(tD)
             
+#finds max temp, as well as the integer position of Tmax
     Tmax = max(Traw)
-    print (Tmax)
     posTmax = [i for i,x in enumerate(Traw) if x == Tmax]
     posTmax = posTmax[0]
     
+#these are inputs, grams of water, grams of polyol, polyol ew, cp, r,mt
+#####future, get these from another csv
     Tamb = numpy.mean(Traw[0:20])
     Twork = 0
     Tcorr = []
     lnTfit = []
     pNCO = []
     r = 1
-    H  = 93900*0.036724 + 125500*0.095381 #j/gmole
+    gh2o = 1.718
+    gpol = 42.96
+    ewpol = 1169
+    H  = 93900*(gpol/ewpol) + 125500*(gh2o/18) #j
     cp = 1.4 #j/g.K
     mt = 75
     
+#fits the data to the area that dx/dt = 0 (after Tmax)
     fitt = timDec[posTmax+800:]
     Tt = Traw[posTmax+800:]
     Tt[:] = [x-Tamb for x in Tt]
     fitT = numpy.log(Tt)
     eq, R = findslope(fitt,fitT)
-    
     lnTfit[:] = [fitt[x]*eq[0]+eq[1] for x in range(len(fitt))]
-    
     rsq = r2(fitT,lnTfit)
-    #print rsq
     
+#Calc theoretical max T from inputs, used to get conversion
     TadCalc = H/(cp*mt)
     
-    print (Tt[0],Tamb, TadCalc, eq[0])
-    
+#Fill arrays for Tcorrected and pNO (conversion)    
     for k in range(len(Traw)):
         Tcorr.append(Traw[k] - eq[0]*(Traw[k]-Tamb)*timDec[k]- Twork)
         pNCO.append(100*r*(Tcorr[k]-Tamb)/(TadCalc-Tamb))
-    
+
+#Writing the SCSV output file with all new converted t and p
+###########future, search for any csv's with CONVERTED in title and skip them    
     CSVout = file.split('.')[0] + "_Corrected.csv"    
     with open(CSVout,'w', newline='') as f: 
         head = ['t','Traw' ,'Tcorr' ,'P']
@@ -77,7 +90,8 @@ for file in glob.glob("*.csv"):
         csvwrite.writeheader()
         for j in range(len(Traw)):
             csvwrite.writerow({'t': timDec[j], 'Traw': Traw[j],'Tcorr': Tcorr[j],'P': pNCO[j]})
-    
+
+#If you want to see plot change to Y    
     pltT = 'N'
     if pltT == 'Y' :
         
